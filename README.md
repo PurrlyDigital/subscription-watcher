@@ -4,6 +4,12 @@ A small macOS plugin showing Claude Code and Codex subscription **percent remain
 in the expanded Spaces sidebar. A single section appears under the first workspace.
 `↻` marks reset times in the local timezone. Requires Herdr 0.9.2+ and Python 3.9+.
 
+## Example
+
+The sidebar matches your active Herdr theme. This example uses a custom theme.
+
+![Claude Code and Codex subscription allowances in the Herdr sidebar](assets/subscription-sidebar.png)
+
 ## Setup
 
 1. Log in to Claude Code and Codex on this Mac.
@@ -92,7 +98,8 @@ if you want to remove cached usage.
 
 Publish only these files: `.gitignore`, `herdr-plugin.toml`, `usage.py`,
 `make_launchagent.py`, `test_usage.py`, `sidebar.example.toml`, `README.md`, and
-`SECURITY.md`. Do **not** publish your full Herdr configuration, config backups,
+`SECURITY.md`, and the reviewed example image `assets/subscription-sidebar.png`.
+Do **not** publish your full Herdr configuration, config backups,
 session snapshots, credential files, runtime cache/logs, or generated LaunchAgent.
 The ignore rules are defense in depth, not a substitute for checking staged files.
 
