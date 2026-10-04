@@ -2,10 +2,11 @@
 
 ## Scope
 
-Source, manifest, tests, example sidebar config, documentation, and the local
-LaunchAgent generator were reviewed. No remote repository has been contacted and
-no source/history has been pushed. This is a focused code review, not a guarantee
-against every vulnerability or a third-party security certification.
+Source, manifest, tests, example sidebar config, documentation, the local
+LaunchAgent generator, and release packaging were reviewed. The example image
+intentionally shows usage rows; its PNG metadata was removed before publication.
+This is a focused code review, not a guarantee against every vulnerability or a
+third-party security certification.
 
 ## Intended data flow
 
@@ -46,7 +47,9 @@ against every vulnerability or a third-party security certification.
    than unrelated API keys or the plugin's selected-text/context environment.
 6. **Accidental publication.** Runtime data stays outside the source tree; ignore
    rules and an explicit public-file list exclude credentials, usage logs/cache,
-   generated plists, and Python artifacts.
+   generated plists, and Python artifacts. Distribution ZIPs are built from an
+   explicit public-file allowlist, with fixed timestamps and no workstation file
+   paths/ownership metadata. Generated bundles are ignored by Git.
 
 ## Trust boundaries and remaining considerations
 

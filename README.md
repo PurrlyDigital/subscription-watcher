@@ -13,7 +13,8 @@ The sidebar matches your active Herdr theme. This example uses a custom theme.
 ## Setup
 
 1. Log in to Claude Code and Codex on this Mac.
-2. Clone this repository to a permanent local directory and link it:
+2. Clone this repository, or [download the v0.1.0 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.0/subscription-watcher-v0.1.0.zip)
+   and extract it to a permanent local directory. Enter that directory and link it:
 
    ```sh
    herdr plugin link "$PWD"
@@ -96,12 +97,44 @@ if you want to remove cached usage.
 
 ## Publishing
 
-Publish only these files: `.gitignore`, `herdr-plugin.toml`, `usage.py`,
-`make_launchagent.py`, `test_usage.py`, `sidebar.example.toml`, `README.md`, and
-`SECURITY.md`, and the reviewed example image `assets/subscription-sidebar.png`.
-Do **not** publish your full Herdr configuration, config backups,
-session snapshots, credential files, runtime cache/logs, or generated LaunchAgent.
-The ignore rules are defense in depth, not a substitute for checking staged files.
+Build a distribution ZIP and SHA-256 checksum with the standard-library script:
+
+```sh
+/usr/bin/python3 build_release.py
+```
+
+The version comes from `herdr-plugin.toml`. For version `0.1.0`, this creates
+`dist/subscription-watcher-0.1.0.zip` and its `.zip.sha256` checksum. The archive
+uses an explicit public-file allowlist (`FILES` in `build_release.py`), fixed
+file timestamps, and no workstation paths. Generated `dist/` files are ignored
+by Git. No build dependencies, credentials, or network access are needed.
+Verify the checksum from inside `dist/`:
+
+```sh
+(cd dist && shasum -a 256 -c subscription-watcher-0.1.0.zip.sha256)
+```
+
+For each release, update the manifest version and README download link, run the
+tests and packaging script, then tag and push the reviewed commit:
+
+```sh
+# Use the new manifest version instead of 0.1.0 for subsequent releases.
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+GitLab provides a source ZIP for each tag. You can also attach the generated
+allowlisted ZIP and checksum to a GitLab Release; this script does not upload
+assets or create the Release page. The custom ZIP and GitLab source ZIP are
+separate archives, so the generated checksum applies only to the custom ZIP.
+
+Do **not** publish your full Herdr configuration, config backups, session
+snapshots, credential files, runtime cache/logs, or generated LaunchAgent.
+The ignore rules and packaging allowlist do not replace checking staged files.
 
 Herdr's built-in `plugin install` currently accepts GitHub sources, not GitLab.
-For a GitLab repository, clone it with Git and use `herdr plugin link` as above.
+For GitLab, clone or download/extract the plugin and use `herdr plugin link`.
+
+## License
+
+MIT; see [LICENSE](LICENSE).

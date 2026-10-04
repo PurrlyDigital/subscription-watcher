@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .venv/
+dist/
 
 # Never commit credentials, account usage, generated machine paths, or logs.
 .env
