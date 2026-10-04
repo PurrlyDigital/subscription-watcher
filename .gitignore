@@ -1,0 +1,18 @@
+# Local Python/editor artifacts
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+
+# Never commit credentials, account usage, generated machine paths, or logs.
+.env
+.env.*
+auth.json
+.credentials.json
+usage.json
+refresh.lock
+*.tmp
+.usage-*
+*.log
+*.plist
+state/

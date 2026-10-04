@@ -1,0 +1,30 @@
+id = "local.subscription-usage"
+name = "Subscription Usage"
+version = "0.1.0"
+min_herdr_version = "0.9.2"
+description = "Hourly Claude Code and Codex subscription allowance in the sidebar"
+platforms = ["macos"]
+
+[[startup]]
+command = ["/usr/bin/python3", "usage.py"]
+
+[[events]]
+on = "workspace.created"
+command = ["/usr/bin/python3", "usage.py", "--cached"]
+
+[[events]]
+on = "workspace.closed"
+command = ["/usr/bin/python3", "usage.py", "--cached"]
+
+[[events]]
+on = "workspace.moved"
+command = ["/usr/bin/python3", "usage.py", "--cached"]
+
+[[events]]
+on = "workspace.reordered"
+command = ["/usr/bin/python3", "usage.py", "--cached"]
+
+[[actions]]
+id = "refresh"
+title = "Refresh subscription usage now"
+command = ["/usr/bin/python3", "usage.py", "--refresh"]
