@@ -97,6 +97,22 @@ class UsageTests(unittest.TestCase):
                 usage.CACHE.symlink_to(target)
                 self.assertEqual(usage.load_cache(), {})
 
+    def test_claude_keychain_fallback_only_on_macos(self):
+        from subprocess import CompletedProcess
+        keychain = CompletedProcess([], 0, '{"claudeAiOauth": {"accessToken": "TEST_ONLY"}}', "")
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(usage.os.environ, {"CLAUDE_CONFIG_DIR": directory}), \
+                patch.object(usage, "get_json", return_value={}) as get_json, \
+                patch.object(usage.subprocess, "run", return_value=keychain) as run:
+            with patch.object(usage.sys, "platform", "linux"):
+                self.assertEqual(usage.safe_fetch(usage.claude_usage), {"error": "login unavailable"})
+            run.assert_not_called()
+            get_json.assert_not_called()
+            with patch.object(usage.sys, "platform", "darwin"):
+                self.assertEqual(usage.claude_usage(), {})
+            self.assertEqual(run.call_args.args[0][0], "/usr/bin/security")
+            self.assertEqual(get_json.call_args.args[1]["Authorization"], "Bearer TEST_ONLY")
+
     def test_metadata_noop_and_single_sidebar_section(self):
         from subprocess import CompletedProcess
         with patch.object(usage.subprocess, "run", return_value=CompletedProcess([], 0, "", "")):

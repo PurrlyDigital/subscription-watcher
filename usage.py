@@ -79,7 +79,7 @@ def claude_usage():
     credentials_file = Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude")) / ".credentials.json"
     if credentials_file.exists():
         credentials = json.loads(credentials_file.read_text())
-    else:
+    elif sys.platform == "darwin":
         result = subprocess.run(
             ["/usr/bin/security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
             capture_output=True, text=True, timeout=10, env=child_environment(),
@@ -87,6 +87,8 @@ def claude_usage():
         if result.returncode:
             raise FileNotFoundError("Claude Code login unavailable")
         credentials = json.loads(result.stdout)
+    else:
+        raise FileNotFoundError("Claude Code login unavailable")
     token = credentials["claudeAiOauth"]["accessToken"]
     usage = get_json(CLAUDE_URL, {
         "Authorization": "Bearer " + token,
