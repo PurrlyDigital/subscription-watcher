@@ -18,7 +18,7 @@ Log in to Claude Code and Codex before installing.
 
 ### macOS
 
-1. Clone the repository, or extract the [v0.2.0 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.2.0/subscription-watcher-v0.2.0.zip).
+1. Clone the repository, or extract the [v0.1.2 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.2/subscription-watcher-v0.1.2.zip).
 
 	```sh
 	git clone https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher.git
@@ -47,7 +47,7 @@ Log in to Claude Code and Codex before installing.
 	launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/io.herdr.subscription-usage.plist"
 	```
 
-5. Linking does not run the plugin's startup hook. Refresh once to fill the rows.
+5. Refresh once to fill the rows.
 
 	```sh
 	herdr plugin action invoke local.subscription-usage.refresh
@@ -65,11 +65,10 @@ On WSL2, complete these steps first.
 	systemd=true
 	```
 
-- Log in to Claude Code and Codex inside WSL. The plugin does not read Windows
-	logins.
+- Log in to Claude Code and Codex inside WSL.
 
 1. Clone the repository into the Linux filesystem, for example under `~/src`.
-	On WSL2, do not clone into `/mnt/c/...`. Windows drives ignore `chmod` and are slow.
+	On WSL2, do not clone into `/mnt/c/...`.
 
 	```sh
 	git clone https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher.git
@@ -97,7 +96,7 @@ On WSL2, complete these steps first.
 	systemctl --user enable --now subscription-usage.timer
 	```
 
-5. Linking does not run the plugin's startup hook. Refresh once to fill the rows.
+5. Refresh once to fill the rows.
 
 	```sh
 	herdr plugin action invoke local.subscription-usage.refresh
@@ -165,8 +164,7 @@ extract it to a new directory, follow the steps for a moved clone.
 	git pull --ff-only
 	```
 
-2. If `herdr-plugin.toml` changed, link the plugin again. Herdr reads the
-	manifest only at link time. Your config and cached usage stay in place.
+2. If `herdr-plugin.toml` changed, link the plugin again.
 
 	```sh
 	herdr plugin link "$PWD"
@@ -195,7 +193,7 @@ extract it to a new directory, follow the steps for a moved clone.
 	herdr plugin action invoke local.subscription-usage.refresh
 	```
 
-If only `usage.py` changed, you can skip steps 2 to 4. The next run uses the new code.
+If only `usage.py` changed, you can skip steps 2 to 4.
 
 ## Privacy
 
@@ -242,13 +240,13 @@ Run these commands from the plugin directory.
 ```
 
 The build reads the version from `herdr-plugin.toml` and writes a ZIP and
-SHA-256 checksum to `dist/`. For version `0.2.0`, verify the checksum.
+SHA-256 checksum to `dist/`. For version `0.1.2`, verify the checksum.
 
 ```sh
 # macOS
-(cd dist && shasum -a 256 -c subscription-watcher-0.2.0.zip.sha256)
+(cd dist && shasum -a 256 -c subscription-watcher-0.1.2.zip.sha256)
 # Linux
-(cd dist && sha256sum -c subscription-watcher-0.2.0.zip.sha256)
+(cd dist && sha256sum -c subscription-watcher-0.1.2.zip.sha256)
 ```
 
 Attach the ZIP and checksum to a GitLab Release. The checksum applies to this

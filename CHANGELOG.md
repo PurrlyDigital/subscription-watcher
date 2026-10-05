@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0
+## 0.1.2
 
 - Added Linux support, including WSL2 on Windows. The manifest declares the `linux` and `macos` platforms.
 - Added `make_systemd_timer.py`, which writes an hourly systemd user service and timer. It does not run `systemctl`.

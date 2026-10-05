@@ -1,4 +1,4 @@
-# v0.2.0
+# v0.1.2
 
 - The plugin runs on Linux, including WSL2 on Windows. Native Windows is not supported.
 - `make_systemd_timer.py` generates an hourly systemd user timer. Without systemd, the README shows a cron line.
