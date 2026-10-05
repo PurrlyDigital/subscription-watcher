@@ -9,7 +9,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent
 FILES = (
-    ".gitignore", "LICENSE", "README.md", "SECURITY.md", "herdr-plugin.toml",
+    ".gitignore", "LICENSE", "README.md", "RELEASE_NOTES.md", "SECURITY.md", "herdr-plugin.toml",
     "usage.py", "make_launchagent.py", "build_release.py", "test_usage.py",
     "sidebar.example.toml", "assets/subscription-sidebar.png",
 )

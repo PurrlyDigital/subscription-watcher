@@ -13,7 +13,7 @@ time. Times use AM/PM in your local timezone.
 Requires macOS, Herdr 0.9.2 or later, and Python 3.9 or later.
 Log in to Claude Code and Codex before installing.
 
-1. Clone the repository, or extract the [v0.1.0 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.0/subscription-watcher-v0.1.0.zip).
+1. Clone the repository, or extract the [v0.1.1 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.1/subscription-watcher-v0.1.1.zip).
 
 	```sh
 	git clone https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher.git
@@ -93,10 +93,10 @@ Run these commands from the plugin directory.
 ```
 
 The build reads the version from `herdr-plugin.toml` and writes a ZIP and
-SHA-256 checksum to `dist/`. For version `0.1.0`, verify the checksum with this command.
+SHA-256 checksum to `dist/`. For version `0.1.1`, verify the checksum with this command.
 
 ```sh
-(cd dist && shasum -a 256 -c subscription-watcher-0.1.0.zip.sha256)
+(cd dist && shasum -a 256 -c subscription-watcher-0.1.1.zip.sha256)
 ```
 
 Attach the ZIP and checksum to a GitLab Release. The checksum applies to this
