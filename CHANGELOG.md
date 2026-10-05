@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Updated the README screenshot for the three-row sidebar.
+
 ## [0.1.3](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.3)
 
 - Consolidated the sidebar into three rows: `$claude`, `$fable`, and `$codex`. To upgrade, replace the `$claude_5h`, `$claude_week`, `$codex_primary`, and `$codex_secondary` rows in your sidebar config with the rows in `sidebar.example.toml`. The plugin clears the old tokens.

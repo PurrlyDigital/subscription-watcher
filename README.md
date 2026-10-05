@@ -3,18 +3,11 @@
 Shows your remaining Claude Code and Codex allowance in the Herdr sidebar.
 Refreshes hourly while you use Herdr and matches your active theme.
 
-![Claude Code and Codex allowance in the Herdr sidebar](assets/subscription-sidebar.png)
+![Claude, Fable, and Codex allowance rows in the Herdr sidebar](assets/subscription-sidebar.png)
 
 The header shows the last refresh time in AM/PM. Each row shows the remaining
 percentage and the time until it resets, in one unit: days from 48 hours, hours
 from 1 hour, and minutes below that.
-
-```text
-Subscriptions ↻ 11:20 AM
-Claude 100% 4h · wk 16% 7h
-Fable 51% 7h
-Codex 55% 4d · 2 resets
-```
 
 The Claude row shows the 5-hour allowance first, then the weekly one. The Fable
 row is the weekly Fable allowance. The Codex row ends with the number of rate
