@@ -89,8 +89,7 @@ On WSL2, complete these steps first.
 	herdr server reload-config
 	```
 
-4. Generate the systemd user units, then start the hourly timer. The timer runs
-	2 minutes after your user manager starts, then every hour.
+4. Generate the systemd user units, then start the hourly timer.
 
 	```sh
 	/usr/bin/python3 make_systemd_timer.py
@@ -104,9 +103,8 @@ On WSL2, complete these steps first.
 	herdr plugin action invoke local.subscription-usage.refresh
 	```
 
-When you log out, systemd stops your user manager and the timer. If a detached
-Herdr server keeps running after you log out, you can keep the timer running
-too. This step is optional.
+If a detached Herdr server keeps running after you log out, turn on linger to
+keep the timer running too. This step is optional.
 
 ```sh
 loginctl enable-linger "$USER"
@@ -115,8 +113,7 @@ loginctl enable-linger "$USER"
 #### Without systemd
 
 Use cron instead of step 4. Run `crontab -e` and add this line. Replace
-`<plugin-dir>` with the absolute path of your clone. Cron does not run missed
-jobs after downtime, so the rows can stay stale until the next hour.
+`<plugin-dir>` with the absolute path of your clone.
 
 ```crontab
 0 * * * * /usr/bin/python3 <plugin-dir>/usage.py --refresh
@@ -139,14 +136,13 @@ Show cached usage from the plugin directory.
 /usr/bin/python3 usage.py --print
 ```
 
-Check the hourly job on macOS. `not running` is normal between runs.
+Check the hourly job on macOS.
 
 ```sh
 launchctl print "gui/$(id -u)/io.herdr.subscription-usage"
 ```
 
-Check the hourly job on Linux. The first command shows the next run. The second
-shows the log.
+Check the hourly job on Linux.
 
 ```sh
 systemctl --user list-timers subscription-usage.timer

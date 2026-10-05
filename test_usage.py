@@ -29,10 +29,10 @@ class UsageTests(unittest.TestCase):
         now = dt.datetime(2030, 1, 2, 18, 0).timestamp()
         reset = dt.datetime(2030, 1, 2, 19, 30).timestamp()
         self.assertEqual(usage.format_window(usage.window("Claude 5h", 25, reset), now),
-                         "Claude 5h: 75% ↻7:30 PM")
+                         "Claude 5h: 75% ↻ 7:30 PM")
         reset = dt.datetime(2030, 1, 3, 7, 0).timestamp()
         self.assertEqual(usage.format_window(usage.window("Claude wk", 25, reset), now),
-                         "Claude wk: 75% ↻Thu 7:00 AM")
+                         "Claude wk: 75% ↻ Thu 7:00 AM")
         tokens = usage.sidebar_tokens({"fetched_at": now}, now=now + 1)
         self.assertEqual(tokens["subscription_header"], "Subscriptions (↻ 6:00 PM)")
         self.assertIsNone(tokens["usage_updated"])

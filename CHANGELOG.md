@@ -4,6 +4,7 @@
 
 - Added Linux support, including WSL2 on Windows. The manifest declares the `linux` and `macos` platforms.
 - Added `make_systemd_timer.py`, which writes an hourly systemd user service and timer. It does not run `systemctl`.
+- Added a space after `↻` in allowance rows, as in `↻ 7:30 PM`, so the symbol no longer runs into the reset time in Windows Terminal.
 - Limited the Claude Code Keychain fallback to macOS. On Linux, the plugin reads `~/.claude/.credentials.json`, or `.credentials.json` in `$CLAUDE_CONFIG_DIR`.
 - Added Linux, WSL2, cron, update, and removal steps to the README.
 - Added an install step that runs the refresh action after linking, because linking does not run the startup hook.

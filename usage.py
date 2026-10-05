@@ -241,7 +241,7 @@ def format_window(value, now):
         suffix = format_time(local)
         if local.date() != today:
             suffix = local.strftime("%a ") + suffix
-        text += " ↻" + suffix
+        text += " ↻ " + suffix
     return text
 
 
