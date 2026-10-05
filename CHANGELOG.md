@@ -1,18 +1,19 @@
 # Changelog
 
-## 0.1.2
+## [0.1.2](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.2)
 
 - Added Linux support, including WSL2 on Windows. The manifest declares the `linux` and `macos` platforms.
 - Added `make_systemd_timer.py`, which writes an hourly systemd user service and timer. It does not run `systemctl`.
-- Added a space after `↻` in allowance rows, as in `↻ 7:30 PM`, so the symbol no longer runs into the reset time in Windows Terminal.
+- Added a space after `↻` in allowance rows, as in `↻ 7:30 PM`. The symbol no longer runs into the reset time in Windows Terminal.
 - Limited the Claude Code Keychain fallback to macOS. On Linux, the plugin reads `~/.claude/.credentials.json`, or `.credentials.json` in `$CLAUDE_CONFIG_DIR`.
-- Added Linux, WSL2, cron, update, and removal steps to the README.
-- Added an install step that runs the refresh action after linking, because linking does not run the startup hook.
+- Added Linux, WSL2, cron, update, and removal steps to the README, and removed its explanatory notes.
+- Added an install step that runs the refresh action after linking.
 - Added Linux and systemd notes to the security review.
+- Added this changelog, linked it from the README, and included it in the distribution ZIP.
 - Included the systemd generator and its tests in the distribution ZIP.
-- Changed the distribution ZIP to extract into a `subscription-watcher/` folder without a version, so a new release extracts over the old install. The ZIP file name keeps the version.
+- Changed the distribution ZIP to extract into a `subscription-watcher/` folder without a version. A new release extracts over the old install. The ZIP file name keeps the version.
 
-## 0.1.1
+## [0.1.1](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.1)
 
 - Changed refresh and reset times to a 12-hour clock with AM and PM.
 - Moved the last refresh time into the Subscriptions header, replacing the separate Updated row.
@@ -20,7 +21,7 @@
 - Shortened the README and updated its screenshot.
 - Included release notes in the distribution ZIP.
 
-## 0.1.0
+## [0.1.0](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.0)
 
 Initial release.
 
