@@ -5,7 +5,8 @@ Refreshes hourly and matches your active theme.
 
 ![Claude Code and Codex allowance in the Herdr sidebar](assets/subscription-sidebar.png)
 
-`↻` marks the reset time in your local timezone.
+The header shows the last refresh time. `↻` beside an allowance marks its reset
+time. Times use AM/PM in your local timezone.
 
 ## Install
 
@@ -27,7 +28,7 @@ Log in to Claude Code and Codex before installing.
 
 3. Merge [sidebar.example.toml](sidebar.example.toml) into `~/.config/herdr/config.toml`.
 	Update an existing `[ui.sidebar.spaces]` section rather than adding a duplicate.
-	If rows are clipped, set `sidebar_min_width = 28` under `[ui]`.
+	If rows are clipped, set `sidebar_min_width = 32` under `[ui]`.
 
 	```sh
 	herdr server reload-config

@@ -27,6 +27,7 @@ MAX_JSON_BYTES = 1024 * 1024
 SAFE_ERRORS = frozenset(("sign in again", "rate limited", "login unavailable", "usage unavailable"))
 TOKEN_NAMES = ("subscription_header", "claude_5h", "claude_week",
                "codex_primary", "codex_secondary", "usage_updated")
+# Keep usage_updated in the patch list to clear the separate row on older installs.
 
 
 class NoRedirects(urllib.request.HTTPRedirectHandler):
@@ -220,6 +221,12 @@ def refresh():
     return result
 
 
+def format_time(value):
+    hour = value.hour % 12 or 12
+    period = "AM" if value.hour < 12 else "PM"
+    return f"{hour}:{value.minute:02d} {period}"
+
+
 def format_window(value, now):
     label = value["label"]
     reset = value.get("reset")
@@ -229,7 +236,9 @@ def format_window(value, now):
     if reset is not None:
         local = dt.datetime.fromtimestamp(reset).astimezone()
         today = dt.datetime.fromtimestamp(now).astimezone().date()
-        suffix = local.strftime("%H:%M" if local.date() == today else "%a %H:%M")
+        suffix = format_time(local)
+        if local.date() != today:
+            suffix = local.strftime("%a ") + suffix
         text += " ↻" + suffix
     return text
 
@@ -237,8 +246,11 @@ def format_window(value, now):
 def sidebar_tokens(cache, now=None):
     now = time.time() if now is None else now
     tokens = dict.fromkeys(TOKEN_NAMES)
-    tokens["subscription_header"] = "Subscriptions (hourly)"
+    tokens["subscription_header"] = "Subscriptions"
     fetched = cache.get("fetched_at", 0)
+    if fetched:
+        refreshed = format_time(dt.datetime.fromtimestamp(fetched))
+        tokens["subscription_header"] = f"Subscriptions (↻ {refreshed})"
     if not fetched or now - fetched >= MAX_AGE:
         tokens["claude_5h"] = "Claude: refresh pending"
         tokens["codex_primary"] = "Codex: refresh pending"
@@ -251,7 +263,6 @@ def sidebar_tokens(cache, now=None):
             for name, value in data["windows"].items():
                 if name in tokens:
                     tokens[name] = format_window(value, now)
-    tokens["usage_updated"] = "Updated " + dt.datetime.fromtimestamp(fetched).strftime("%H:%M")
     return tokens
 
 

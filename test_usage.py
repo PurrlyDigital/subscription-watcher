@@ -1,5 +1,6 @@
 """Small offline checks; all fixtures are synthetic, never account data."""
 import contextlib
+import datetime as dt
 import io
 import json
 from pathlib import Path
@@ -19,6 +20,22 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(usage.format_window(value, 201), "Claude 5h: refresh due")
         with self.assertRaises(ValueError):
             usage.window("Claude 5h", float("nan"), None)
+
+    def test_twelve_hour_time(self):
+        for hour, expected in ((0, "12:05 AM"), (12, "12:05 PM"), (19, "7:05 PM")):
+            self.assertEqual(usage.format_time(dt.datetime(2030, 1, 2, hour, 5)), expected)
+
+    def test_header_and_reset_times(self):
+        now = dt.datetime(2030, 1, 2, 18, 0).timestamp()
+        reset = dt.datetime(2030, 1, 2, 19, 30).timestamp()
+        self.assertEqual(usage.format_window(usage.window("Claude 5h", 25, reset), now),
+                         "Claude 5h: 75% ↻7:30 PM")
+        reset = dt.datetime(2030, 1, 3, 7, 0).timestamp()
+        self.assertEqual(usage.format_window(usage.window("Claude wk", 25, reset), now),
+                         "Claude wk: 75% ↻Thu 7:00 AM")
+        tokens = usage.sidebar_tokens({"fetched_at": now}, now=now + 1)
+        self.assertEqual(tokens["subscription_header"], "Subscriptions (↻ 6:00 PM)")
+        self.assertIsNone(tokens["usage_updated"])
 
     def test_stale_cache_does_not_display_old_balance(self):
         cache = {"fetched_at": 100, "claude": {"windows": {
