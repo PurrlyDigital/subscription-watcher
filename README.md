@@ -26,6 +26,21 @@ Requires macOS or Linux, Herdr 0.9.2 or later, and Python 3.9 or later at
 `/usr/bin/python3`. On Windows, use WSL2. Herdr does not support native Windows.
 Log in to Claude Code and Codex before installing.
 
+### Install from GitHub
+
+Herdr can install the plugin from the [GitHub mirror](https://github.com/PurrlyDigital/subscription-watcher)
+on macOS, Linux, and WSL2. On WSL2, first complete the setup at the start of
+[Linux and WSL2](#linux-and-wsl2).
+
+1. Install the plugin, then go to the directory where Herdr installed it.
+
+	```sh
+	herdr plugin install PurrlyDigital/subscription-watcher
+	cd "$(herdr plugin list --json | /usr/bin/python3 -c 'import json, sys; print(next(p["plugin_root"] for p in json.load(sys.stdin)["result"]["plugins"] if p["plugin_id"] == "local.subscription-usage"))')"
+	```
+
+2. Continue from step 3 of the macOS or Linux steps.
+
 ### macOS
 
 1. Clone the repository, or extract the [v0.1.3 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.3/subscription-watcher-v0.1.3.zip).
@@ -159,9 +174,13 @@ refresh. `refresh pending` means the cache is missing or at least two hours old.
 
 ## Update
 
-Run these steps from the plugin directory. If you installed from the ZIP,
-extract the new version over the old directory instead of step 1. If you
-extract it to a new directory, follow the steps for a moved clone.
+If you installed from GitHub, run `herdr plugin install PurrlyDigital/subscription-watcher`
+again, then refresh as in step 4. Herdr replaces the checkout at the same path,
+so the hourly job keeps working.
+
+For a clone, run these steps from the plugin directory. If you installed from
+the ZIP, extract the new version over the old directory instead of step 1. If
+you extract it to a new directory, follow the steps for a moved clone.
 
 1. Pull the latest version.
 
@@ -210,6 +229,10 @@ The plugin does not store or log credentials. Other Herdr session viewers can
 see your usage and reset times. See the [security review](SECURITY.md) for details.
 
 ## Remove
+
+If you installed from GitHub, run `herdr plugin uninstall local.subscription-usage`
+in place of `herdr plugin unlink local.subscription-usage`. It also deletes the
+checkout.
 
 On macOS, run these commands.
 
