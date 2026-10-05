@@ -8,6 +8,8 @@ Refreshes hourly and matches your active theme.
 The header shows the last refresh time. `↻` beside an allowance marks its reset
 time. Times use AM/PM in your local timezone.
 
+[Changelog](CHANGELOG.md)
+
 ## Install
 
 Requires macOS, Herdr 0.9.2 or later, and Python 3.9 or later.
