@@ -1,12 +1,29 @@
 # Subscription watcher for Herdr
 
 Shows your remaining Claude Code and Codex allowance in the Herdr sidebar.
-Refreshes hourly and matches your active theme.
+Refreshes hourly while you use Herdr and matches your active theme.
 
 ![Claude Code and Codex allowance in the Herdr sidebar](assets/subscription-sidebar.png)
 
-The header shows the last refresh time. `↻` beside an allowance marks its reset
-time. Times use AM/PM in your local timezone.
+The header shows the last refresh time in AM/PM. Each row shows the remaining
+percentage and the time until it resets, in one unit: days from 48 hours, hours
+from 1 hour, and minutes below that.
+
+```text
+Subscriptions ↻ 11:20 AM
+Claude 100% 4h · wk 16% 7h
+Fable 51% 7h
+Codex 55% 4d · 2 resets
+```
+
+The Claude row shows the 5-hour allowance first, then the weekly one. The Fable
+row is the weekly Fable allowance. The Codex row ends with the number of rate
+limit resets available on your account.
+
+When you focus a workspace, tab, or pane, or an agent changes status, the plugin
+refreshes if the last refresh is an hour old or a shown allowance has reset. After
+sleep or a detached session, the rows update the first time you use Herdr again.
+The optional hourly job also refreshes while you are away.
 
 [Changelog](CHANGELOG.md)
 
@@ -18,7 +35,7 @@ Log in to Claude Code and Codex before installing.
 
 ### macOS
 
-1. Clone the repository, or extract the [v0.1.2 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.2/subscription-watcher-v0.1.2.zip).
+1. Clone the repository, or extract the [v0.1.3 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.3/subscription-watcher-v0.1.3.zip).
 
 	```sh
 	git clone https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher.git
@@ -34,12 +51,11 @@ Log in to Claude Code and Codex before installing.
 3. Merge [sidebar.example.toml](sidebar.example.toml) into `~/.config/herdr/config.toml`.
 	Update an existing `[ui.sidebar.spaces]` section rather than adding a duplicate.
 	If rows are clipped, set `sidebar_min_width = 32` under `[ui]`.
+	Then reload the config in each open Herdr window. Press the prefix key
+	(`ctrl+b` by default), then `shift+R`. `herdr server reload-config` does not
+	update the sidebar layout of a window that is already open.
 
-	```sh
-	herdr server reload-config
-	```
-
-4. Start the hourly job. If you are reinstalling, unload the existing job first
+4. Optional: start the hourly job. If you are reinstalling, unload the existing job first
 	with `launchctl bootout "gui/$(id -u)/io.herdr.subscription-usage"`.
 
 	```sh
@@ -82,13 +98,9 @@ On WSL2, complete these steps first.
 	```
 
 3. Merge [sidebar.example.toml](sidebar.example.toml) into `~/.config/herdr/config.toml`,
-	as in macOS step 3. Then reload the config.
+	and reload the config in each open Herdr window, as in macOS step 3.
 
-	```sh
-	herdr server reload-config
-	```
-
-4. Generate the systemd user units, then start the hourly timer.
+4. Optional: generate the systemd user units, then start the hourly timer.
 
 	```sh
 	/usr/bin/python3 make_systemd_timer.py
@@ -149,8 +161,8 @@ journalctl --user -u subscription-usage.service
 ```
 
 If a row says `sign in again`, log in to that provider again and refresh.
-`refresh due` means the reset time has passed. `refresh pending` means the cache
-is missing or at least two hours old.
+`reset` in place of a percentage means that allowance has reset since the last
+refresh. `refresh pending` means the cache is missing or at least two hours old.
 
 ## Update
 
@@ -193,6 +205,10 @@ extract it to a new directory, follow the steps for a moved clone.
 	herdr plugin action invoke local.subscription-usage.refresh
 	```
 
+If `sidebar.example.toml` changed, merge its rows into
+`~/.config/herdr/config.toml` again. Then reload the config in each open Herdr
+window with the prefix key and `shift+R`.
+
 If only `usage.py` changed, you can skip steps 2 to 4.
 
 ## Privacy
@@ -226,8 +242,9 @@ If you turned on linger only for this plugin, turn it off.
 loginctl disable-linger "$USER"
 ```
 
-Remove the subscription rows from `~/.config/herdr/config.toml` and run
-`herdr server reload-config`. To delete cached usage, remove
+Remove the subscription rows from `~/.config/herdr/config.toml`, then reload
+the config in each open Herdr window with the prefix key and `shift+R`. To delete
+cached usage, remove
 `~/.local/state/herdr/subscription-usage/`.
 
 ## Test and package
@@ -240,13 +257,13 @@ Run these commands from the plugin directory.
 ```
 
 The build reads the version from `herdr-plugin.toml` and writes a ZIP and
-SHA-256 checksum to `dist/`. For version `0.1.2`, verify the checksum.
+SHA-256 checksum to `dist/`. For version `0.1.3`, verify the checksum.
 
 ```sh
 # macOS
-(cd dist && shasum -a 256 -c subscription-watcher-0.1.2.zip.sha256)
+(cd dist && shasum -a 256 -c subscription-watcher-0.1.3.zip.sha256)
 # Linux
-(cd dist && sha256sum -c subscription-watcher-0.1.2.zip.sha256)
+(cd dist && sha256sum -c subscription-watcher-0.1.3.zip.sha256)
 ```
 
 Attach the ZIP and checksum to a GitLab Release. The checksum applies to this

@@ -22,7 +22,9 @@ third-party security certification.
 - Sends Codex's OAuth bearer token and, if present, ChatGPT account ID only to
   `https://chatgpt.com/backend-api/wham/usage`.
 - Keeps only allowance percentages, fixed window labels, reset times, fetch time,
-  and fixed error/status strings in the local cache and Herdr metadata.
+  the Codex rate limit reset count, and fixed error/status strings in the local
+  cache and Herdr metadata. The Fable label is fixed in code; the plugin matches
+  the API's model name but never stores or displays it.
 - Does not collect email, organization, account ID, subscription plan, conversation
   text, workspace contents, or refresh tokens for storage/display/transmission to
   Herdr. Credential files can contain those fields; the script selects only the

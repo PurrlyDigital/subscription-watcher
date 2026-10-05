@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.3](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.3)
+
+- Consolidated the sidebar into three rows: `$claude`, `$fable`, and `$codex`. To upgrade, replace the `$claude_5h`, `$claude_week`, `$codex_primary`, and `$codex_secondary` rows in your sidebar config with the rows in `sidebar.example.toml`. The plugin clears the old tokens.
+- Added the weekly Fable allowance as its own row, and the number of available Codex rate limit resets to the Codex row.
+- Changed reset times to a one-unit countdown, such as `4h` or `4d`. Removed the parentheses around the refresh time in the header.
+- Added `usage.py --if-stale`, which runs on focus and agent-status events. It refreshes a stale cache the first time you use Herdr after a detached session or sleep. It also republishes the rows when the countdown text changes.
+- Made the hourly LaunchAgent and systemd timer optional.
+- Changed the plugin to refresh when a shown allowance passes its reset time, and five minutes after a `usage unavailable` failure, instead of waiting an hour.
+- Changed the README to reload the config from inside Herdr with the prefix key and `shift+R`. `herdr server reload-config` does not update the sidebar layout of an open window.
+- Added an Update step to merge `sidebar.example.toml` again when it changes.
+
 ## [0.1.2](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.2)
 
 - Added Linux support, including WSL2 on Windows. The manifest declares the `linux` and `macos` platforms.

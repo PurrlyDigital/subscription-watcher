@@ -3,6 +3,7 @@
 import argparse
 import datetime as dt
 import fcntl
+import hashlib
 import json
 import math
 import os
@@ -18,16 +19,22 @@ import urllib.request
 HOME = Path.home()
 ROOT = HOME / ".local/state/herdr/subscription-usage"
 CACHE = ROOT / "usage.json"
+PUBLISHED = ROOT / "published"
 INTERVAL = 3600
+RETRY = 300
 MAX_AGE = 7200
 SOURCE = "local:subscription-usage"
 CLAUDE_URL = "https://api.anthropic.com/api/oauth/usage"
 CODEX_URL = "https://chatgpt.com/backend-api/wham/usage"
 MAX_JSON_BYTES = 1024 * 1024
 SAFE_ERRORS = frozenset(("sign in again", "rate limited", "login unavailable", "usage unavailable"))
-TOKEN_NAMES = ("subscription_header", "claude_5h", "claude_week",
-               "codex_primary", "codex_secondary", "usage_updated")
-# Keep usage_updated in the patch list to clear the separate row on older installs.
+ROW_TOKENS = ("subscription_header", "claude", "fable", "codex")
+# Older row names stay in the patch list so upgrades clear their rows.
+TOKEN_NAMES = ROW_TOKENS + ("claude_5h", "claude_week", "codex_primary",
+                            "codex_secondary", "usage_updated")
+CLAUDE_WINDOWS = ("claude_5h", "claude_week", "fable_week")
+CODEX_WINDOWS = ("codex_primary", "codex_secondary")
+MAX_RESETS = 1000
 
 
 class NoRedirects(urllib.request.HTTPRedirectHandler):
@@ -94,10 +101,16 @@ def claude_usage():
         "Authorization": "Bearer " + token,
         "anthropic-beta": "oauth-2025-04-20",
     })
-    return {name: window(label, usage[key]["utilization"], usage[key].get("resets_at"))
-            for name, key, label in (("claude_5h", "five_hour", "Claude 5h"),
-                                     ("claude_week", "seven_day", "Claude wk"))
-            if usage.get(key)}
+    windows = {name: window(label, usage[key]["utilization"], usage[key].get("resets_at"))
+               for name, key, label in (("claude_5h", "five_hour", "Claude 5h"),
+                                        ("claude_week", "seven_day", "Claude wk"))
+               if usage.get(key)}
+    for limit in usage.get("limits") or ():
+        # The Fable weekly allowance appears only as a model-scoped entry here.
+        model = ((limit.get("scope") or {}).get("model") or {}).get("display_name")
+        if limit.get("kind") == "weekly_scoped" and model == "Fable":
+            windows["fable_week"] = window("Fable wk", limit["percent"], limit.get("resets_at"))
+    return {"windows": windows} if windows else {}
 
 
 def codex_usage():
@@ -120,13 +133,18 @@ def codex_usage():
         period = "wk" if seconds == 604800 else (
             f"{seconds // 3600}h" if seconds and seconds % 3600 == 0 else "limit")
         result[name] = window("Codex " + period, value["used_percent"], value.get("reset_at"))
-    return result
+    if not result:
+        return {}
+    data = {"windows": result}
+    resets = (usage.get("rate_limit_reset_credits") or {}).get("available_count")
+    if type(resets) is int and 0 <= resets <= MAX_RESETS:
+        data["resets"] = resets
+    return data
 
 
 def safe_fetch(fetch):
     try:
-        values = fetch()
-        return {"windows": values} if values else {"error": "usage unavailable"}
+        return fetch() or {"error": "usage unavailable"}
     except urllib.error.HTTPError as error:
         if error.code in (401, 403):
             message = "sign in again"
@@ -162,7 +180,7 @@ def sanitize_cache(cache):
                               else "usage unavailable"}
             continue
         windows = {}
-        names = ("claude_5h", "claude_week") if provider == "claude" else ("codex_primary", "codex_secondary")
+        names = CLAUDE_WINDOWS if provider == "claude" else CODEX_WINDOWS
         cached_windows = data.get("windows")
         if not isinstance(cached_windows, dict):
             cached_windows = {}
@@ -175,7 +193,8 @@ def sanitize_cache(cache):
                 continue
             label = value.get("label")
             if provider == "claude":
-                label = "Claude 5h" if name == "claude_5h" else "Claude wk"
+                label = {"claude_5h": "Claude 5h", "claude_week": "Claude wk",
+                         "fable_week": "Fable wk"}[name]
             elif not isinstance(label, str) or (label not in ("Codex wk", "Codex limit") and
                   not (label.startswith("Codex ") and label.endswith("h") and
                        label[6:-1].isascii() and label[6:-1].isdigit() and
@@ -185,7 +204,13 @@ def sanitize_cache(cache):
                 windows[name] = window(label, 100 - remaining, value.get("reset"))
             except (ValueError, TypeError, OverflowError):
                 continue
-        clean[provider] = {"windows": windows} if windows else {"error": "usage unavailable"}
+        if not windows:
+            clean[provider] = {"error": "usage unavailable"}
+            continue
+        clean[provider] = {"windows": windows}
+        resets = data.get("resets")
+        if provider == "codex" and type(resets) is int and 0 <= resets <= MAX_RESETS:
+            clean[provider]["resets"] = resets
     return clean
 
 
@@ -203,10 +228,7 @@ def load_cache():
         return {}
 
 
-def refresh():
-    result = {"fetched_at": time.time(), "claude": safe_fetch(claude_usage),
-              "codex": safe_fetch(codex_usage)}
-    # Only normalized percentages, reset times, and safe status strings are stored.
+def write_private(target, text):
     temp = None
     try:
         # mkstemp creates a new, private file: no deterministic-name symlink or
@@ -214,13 +236,37 @@ def refresh():
         with tempfile.NamedTemporaryFile(mode="w", dir=ROOT, prefix=".usage-", delete=False) as file:
             temp = Path(file.name)
             os.fchmod(file.fileno(), 0o600)
-            json.dump(result, file, allow_nan=False)
-            file.write("\n")
-        temp.replace(CACHE)
+            file.write(text)
+        temp.replace(target)
     finally:
         if temp is not None:
             temp.unlink(missing_ok=True)
+
+
+def refresh():
+    result = {"fetched_at": time.time(), "claude": safe_fetch(claude_usage),
+              "codex": safe_fetch(codex_usage)}
+    # Only normalized percentages, reset times, reset counts, and safe status strings are stored.
+    write_private(CACHE, json.dumps(result, allow_nan=False) + "\n")
     return result
+
+
+def needs_refresh(cache, now):
+    """Refresh after an hour, after a shown window resets, or soon after a network failure."""
+    fetched = cache.get("fetched_at", 0)
+    age = now - fetched
+    if age >= INTERVAL:
+        return True
+    for provider in ("claude", "codex"):
+        data = cache.get(provider, {})
+        # A failure right after wake is usually the network coming back up.
+        if data.get("error") == "usage unavailable" and age >= RETRY:
+            return True
+        for value in data.get("windows", {}).values():
+            reset = value.get("reset")
+            if reset is not None and fetched < reset <= now:
+                return True
+    return False
 
 
 def format_time(value):
@@ -229,20 +275,32 @@ def format_time(value):
     return f"{hour}:{value.minute:02d} {period}"
 
 
-def format_window(value, now):
-    label = value["label"]
+def format_countdown(seconds):
+    """Show one unit: days from 48 hours, hours from 1 hour, otherwise minutes."""
+    if seconds >= 172800:
+        return f"{int(seconds // 86400)}d"
+    if seconds >= 3600:
+        return f"{int(seconds // 3600)}h"
+    return f"{max(1, int(seconds // 60))}m"
+
+
+def format_window(value, now, first=True):
+    # The first window in a row is named by the row; later ones show "wk", "5h", or "limit".
+    label = "" if first else value["label"].split(" ", 1)[1] + " "
     reset = value.get("reset")
     if reset is not None and reset <= now:
-        return f"{label}: refresh due"
-    text = f"{label}: {value['remaining']}%"
+        return label + "reset"
+    text = f"{label}{value['remaining']}%"
     if reset is not None:
-        local = dt.datetime.fromtimestamp(reset).astimezone()
-        today = dt.datetime.fromtimestamp(now).astimezone().date()
-        suffix = format_time(local)
-        if local.date() != today:
-            suffix = local.strftime("%a ") + suffix
-        text += " ↻ " + suffix
+        text += " " + format_countdown(reset - now)
     return text
+
+
+def format_row(name, values, now):
+    if not values:
+        return None
+    return name + " " + " · ".join(format_window(value, now, index == 0)
+                                    for index, value in enumerate(values))
 
 
 def sidebar_tokens(cache, now=None):
@@ -252,20 +310,41 @@ def sidebar_tokens(cache, now=None):
     fetched = cache.get("fetched_at", 0)
     if fetched:
         refreshed = format_time(dt.datetime.fromtimestamp(fetched))
-        tokens["subscription_header"] = f"Subscriptions (↻ {refreshed})"
+        tokens["subscription_header"] = f"Subscriptions ↻ {refreshed}"
     if not fetched or now - fetched >= MAX_AGE:
-        tokens["claude_5h"] = "Claude: refresh pending"
-        tokens["codex_primary"] = "Codex: refresh pending"
+        tokens["claude"] = "Claude: refresh pending"
+        tokens["codex"] = "Codex: refresh pending"
         return tokens
-    for provider, first_token in (("claude", "claude_5h"), ("codex", "codex_primary")):
+    for provider in ("claude", "codex"):
         data = cache.get(provider, {})
         if data.get("error") or not data.get("windows"):
-            tokens[first_token] = f"{provider.capitalize()}: {data.get('error', 'usage unavailable')}"
-        else:
-            for name, value in data["windows"].items():
-                if name in tokens:
-                    tokens[name] = format_window(value, now)
+            tokens[provider] = f"{provider.capitalize()}: {data.get('error', 'usage unavailable')}"
+    claude = cache.get("claude", {}).get("windows", {})
+    codex = cache.get("codex", {})
+    if claude:
+        tokens["claude"] = format_row("Claude", [claude[name] for name in ("claude_5h", "claude_week")
+                                                 if name in claude], now)
+        tokens["fable"] = format_row("Fable", [claude["fable_week"]] if "fable_week" in claude else [], now)
+    if codex.get("windows"):
+        row = format_row("Codex", [codex["windows"][name] for name in CODEX_WINDOWS
+                                   if name in codex["windows"]], now)
+        if "resets" in codex:
+            row += f" · {codex['resets']} reset" + ("" if codex["resets"] == 1 else "s")
+        tokens["codex"] = row
     return tokens
+
+
+def tokens_digest(tokens):
+    return hashlib.sha256(json.dumps(tokens, sort_keys=True).encode()).hexdigest()
+
+
+def last_published():
+    try:
+        fd = os.open(PUBLISHED, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd) as file:
+            return file.read(64)
+    except (OSError, ValueError):
+        return None
 
 
 def herdr(*args):
@@ -281,9 +360,8 @@ def herdr(*args):
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
 
-def publish(cache):
+def publish(tokens):
     spaces = herdr("workspace", "list")["result"]["workspaces"]
-    tokens = sidebar_tokens(cache)
     # One section under the first local workspace, not duplicated on every row.
     for index, space in enumerate(spaces):
         if index and not any(key in space.get("tokens", {}) for key in TOKEN_NAMES):
@@ -303,6 +381,8 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--refresh", action="store_true", help="fetch fresh usage (hourly scheduler)")
     mode.add_argument("--cached", action="store_true", help="publish cached usage without API requests")
+    mode.add_argument("--if-stale", action="store_true",
+                      help="refresh when stale; publish only when the sidebar text changed (Herdr focus events)")
     mode.add_argument("--print", action="store_true", dest="print_only", help="display cached sidebar text")
     args = parser.parse_args()
     os.umask(0o077)
@@ -324,10 +404,16 @@ def main():
                 if value:
                     print(value)
             return
-        if args.refresh or (not args.cached and time.time() - cache.get("fetched_at", 0) >= INTERVAL):
+        if args.refresh or (not args.cached and needs_refresh(cache, time.time())):
             cache = refresh()
+        tokens = sidebar_tokens(cache)
+        digest = tokens_digest(tokens)
+        # Countdowns change without a refresh, so republish whenever the text changes.
+        if args.if_stale and digest == last_published():
+            return
         try:
-            publish(cache)
+            publish(tokens)
+            write_private(PUBLISHED, digest)
         except (RuntimeError, OSError, subprocess.SubprocessError, ValueError, KeyError):
             # Keep the cache even when Herdr is not running; startup republishes it.
             print("Subscription usage cached; Herdr sidebar unavailable.")

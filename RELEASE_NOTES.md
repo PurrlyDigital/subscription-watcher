@@ -1,8 +1,8 @@
-# v0.1.2
+# v0.1.3
 
-- The plugin runs on Linux, including WSL2 on Windows. Native Windows is not supported.
-- `make_systemd_timer.py` generates an hourly systemd user timer. Without systemd, the README shows a cron line.
-- On Linux, the plugin reads Claude Code credentials from `~/.claude/.credentials.json`. It reads the Keychain only on macOS.
-- Allowance rows put a space after `↻`, as in `↻ 7:30 PM`, so the symbol no longer runs into the reset time in Windows Terminal.
-- The README has a new Update section and steps for each operating system.
-- The release ZIP extracts into a `subscription-watcher/` folder, so a new release extracts over the old install.
+- The sidebar shows three rows: Claude, Fable, and Codex. Replace the old subscription rows in your sidebar config with the rows in `sidebar.example.toml`. Then reload the config in Herdr with the prefix key and `shift+R`.
+- The Fable row shows the weekly Fable allowance. The Codex row ends with the number of available rate limit resets.
+- Each allowance shows the time until it resets as a one-unit countdown, such as `4h` or `4d`.
+- The plugin refreshes the first time you use Herdr after a detached session or sleep. The hourly LaunchAgent and systemd timer are optional.
+- After a `usage unavailable` failure, the plugin retries after five minutes.
+- `herdr-plugin.toml` changed, so link the plugin again after you update.

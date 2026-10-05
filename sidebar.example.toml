@@ -1,12 +1,11 @@
 # Merge this section into ~/.config/herdr/config.toml; do not replace your config.
-# Allow roughly 32 columns so usage and AM/PM reset times fit.
+# Allow roughly 32 columns so the Claude and Codex rows fit.
 [ui.sidebar.spaces]
 rows = [
   ["state_icon", "workspace"],
   ["branch", "git_status"],
   [{ token = "$subscription_header", bold = true }],
-  ["$claude_5h"],
-  ["$claude_week"],
-  ["$codex_primary"],
-  ["$codex_secondary"],
+  ["$claude"],
+  ["$fable"],
+  ["$codex"],
 ]
