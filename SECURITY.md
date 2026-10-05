@@ -3,14 +3,20 @@
 ## Scope
 
 Source, manifest, tests, example sidebar config, documentation, the local
-LaunchAgent generator, and release packaging were reviewed. The example image
-intentionally shows usage rows; its PNG metadata was removed before publication.
+LaunchAgent and systemd timer generators, and release packaging were reviewed.
+The example image intentionally shows usage rows; its PNG metadata was removed
+before publication.
 This is a focused code review, not a guarantee against every vulnerability or a
 third-party security certification.
 
 ## Intended data flow
 
-- Reads native Claude Code/Codex credentials into process memory.
+- Reads native Claude Code/Codex credentials into process memory. On Linux,
+  including WSL2, the plugin reads them only from the login files. Claude Code
+  credentials are in `.credentials.json` in `~/.claude` or `$CLAUDE_CONFIG_DIR`.
+  Codex credentials are in `auth.json` in `~/.codex` or `$CODEX_HOME`. The
+  plugin does not check the permissions of these files. Keep them readable only
+  by you (0600). The Keychain fallback runs only on macOS.
 - Sends Claude's OAuth bearer token only to
   `https://api.anthropic.com/api/oauth/usage`.
 - Sends Codex's OAuth bearer token and, if present, ChatGPT account ID only to
@@ -47,9 +53,17 @@ third-party security certification.
    than unrelated API keys or the plugin's selected-text/context environment.
 6. **Accidental publication.** Runtime data stays outside the source tree; ignore
    rules and an explicit public-file list exclude credentials, usage logs/cache,
-   generated plists, and Python artifacts. Distribution ZIPs are built from an
-   explicit public-file allowlist, with fixed timestamps and no workstation file
+   generated plists, and Python artifacts. The systemd generator writes its units
+   to `~/.config/systemd/user/`, outside the repository. Distribution ZIPs are
+   built from an explicit public-file allowlist, with fixed timestamps and no workstation file
    paths/ownership metadata. Generated bundles are ignored by Git.
+7. **systemd unit injection.** systemd expands `%` specifiers and `$` variables
+   and interprets quotes and backslashes, even inside double quotes. The generator
+   accepts only printable absolute paths without `%`, `$`, quotes, or backslashes,
+   and validates every value before it writes a file. It refuses symlinked unit
+   files and a symlinked units directory, and writes units as 0600 through atomic
+   replacement. `Environment=` holds only the Herdr binary and socket paths, never
+   a credential or token. The generator never calls `systemctl`.
 
 ## Trust boundaries and remaining considerations
 
@@ -59,7 +73,15 @@ third-party security certification.
 - The native login files, macOS Keychain, operating system, Python/TLS trust store,
   Herdr binary, plugin source directory, and configured credential/socket/binary
   overrides must be trusted. This is not a sandbox against another process running
-  as the same user, an administrator, a compromised provider, or a compromised Mac.
+  as the same user, an administrator, a compromised provider, or a compromised
+  computer.
+- On WSL2, Windows processes that run as the same Windows user can read the Linux
+  filesystem through `\\wsl$`, including the login files and the cache. Treat
+  the Windows account as part of the trust boundary.
+- The LaunchAgent and the systemd service each record the absolute paths of the
+  Python interpreter and `usage.py`. The scheduler runs whatever code is at those
+  paths every hour. Protect the plugin directory and the interpreter from writes
+  by other users, and generate the job again if either moves.
 - Credentials necessarily exist in memory during authenticated requests. Python
   does not guarantee secure memory erasure; privileged inspection/crash collection
   is outside this plugin's protection.
@@ -69,13 +91,16 @@ third-party security certification.
   data. Do not commit it or attach it to public bug reports.
 - The CLI/session metadata and its access controls belong to Herdr. This review
   does not audit Herdr's socket permissions, snapshots, or diagnostics implementation.
-- Do not publish the containing `.config/herdr` directory or the generated local
-  launcher. Review staged files before pushing, even with `.gitignore` present.
+- Do not publish the containing `.config/herdr` directory, the generated local
+  launcher, or the generated systemd units. Review staged files before pushing,
+  even with `.gitignore` present.
 
 ## Verification
 
 A small offline unittest suite checks redirect rejection, the endpoint allowlist,
-error redaction, normalized cache filtering/private writes, and basic display
-behavior. It uses no real credentials or live network. Public source is also
+error redaction, normalized cache filtering/private writes, the macOS-only
+Keychain fallback, and basic display behavior. It also checks the exact systemd
+unit text, file modes, rejection of unsafe values, and refusal of symlinked unit
+paths. It uses no real credentials or live network. Public source is also
 checked for personal paths, email addresses other than explicit synthetic test
 fixtures, and common credential patterns before publication.

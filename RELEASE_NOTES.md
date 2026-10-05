@@ -1,6 +1,7 @@
-# v0.1.1
+# v0.2.0
 
-- Times use a 12-hour clock with AM and PM.
-- The Subscriptions header includes the last refresh time. It replaces the separate Updated row.
-- The sidebar example allows more room for reset times.
-- The README has shorter instructions and an updated screenshot.
+- The plugin runs on Linux, including WSL2 on Windows. Native Windows is not supported.
+- `make_systemd_timer.py` generates an hourly systemd user timer. Without systemd, the README shows a cron line.
+- On Linux, the plugin reads Claude Code credentials from `~/.claude/.credentials.json`. It reads the Keychain only on macOS.
+- The README has a new Update section and steps for each operating system.
+- The release ZIP extracts into a `subscription-watcher/` folder, so a new release extracts over the old install.

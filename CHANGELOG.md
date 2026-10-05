@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0
+
+- Added Linux support, including WSL2 on Windows. The manifest declares the `linux` and `macos` platforms.
+- Added `make_systemd_timer.py`, which writes an hourly systemd user service and timer. It does not run `systemctl`.
+- Limited the Claude Code Keychain fallback to macOS. On Linux, the plugin reads `~/.claude/.credentials.json`, or `.credentials.json` in `$CLAUDE_CONFIG_DIR`.
+- Added Linux, WSL2, cron, update, and removal steps to the README.
+- Added an install step that runs the refresh action after linking, because linking does not run the startup hook.
+- Added Linux and systemd notes to the security review.
+- Included the systemd generator and its tests in the distribution ZIP.
+- Changed the distribution ZIP to extract into a `subscription-watcher/` folder without a version, so a new release extracts over the old install. The ZIP file name keeps the version.
+
 ## 0.1.1
 
 - Changed refresh and reset times to a 12-hour clock with AM and PM.

@@ -10,7 +10,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parent
 FILES = (
     ".gitignore", "LICENSE", "README.md", "CHANGELOG.md", "RELEASE_NOTES.md", "SECURITY.md", "herdr-plugin.toml",
-    "usage.py", "make_launchagent.py", "build_release.py", "test_usage.py",
+    "usage.py", "make_launchagent.py", "make_systemd_timer.py", "build_release.py",
+    "test_usage.py", "test_make_systemd_timer.py",
     "sidebar.example.toml", "assets/subscription-sidebar.png",
 )
 
@@ -21,6 +22,8 @@ def main():
     if not match:
         raise ValueError("expected a three-part manifest version")
     prefix = "subscription-watcher-" + match.group(1)
+    # Unversioned folder so a new release extracts over the old install path.
+    folder = "subscription-watcher/"
     # Validate the entire allowlist before writing; never follow a file symlink.
     for name in FILES:
         file = ROOT / name
@@ -39,7 +42,7 @@ def main():
             for name in FILES:
                 # Fixed timestamps and permissions: no workstation path, file
                 # ownership, or original modification-time metadata in the ZIP.
-                info = zipfile.ZipInfo(prefix + "/" + name, date_time=(1980, 1, 1, 0, 0, 0))
+                info = zipfile.ZipInfo(folder + name, date_time=(1980, 1, 1, 0, 0, 0))
                 info.create_system = 3
                 info.external_attr = 0o100644 << 16
                 archive.writestr(info, (ROOT / name).read_bytes(), compress_type=zipfile.ZIP_DEFLATED)

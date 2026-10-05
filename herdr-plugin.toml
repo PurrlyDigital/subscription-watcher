@@ -1,6 +1,6 @@
 id = "local.subscription-usage"
 name = "Subscription Usage"
-version = "0.1.1"
+version = "0.2.0"
 min_herdr_version = "0.9.2"
 description = "Hourly Claude Code and Codex subscription allowance in the sidebar"
 platforms = ["linux", "macos"]
