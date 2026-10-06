@@ -99,25 +99,84 @@ class UsageTests(unittest.TestCase):
         self.assertFalse(usage.needs_refresh(signed_out, fetched + usage.RETRY))
         self.assertTrue(usage.needs_refresh({}, fetched))
 
-    def test_if_stale_publishes_only_when_text_changes(self):
+    def test_expired_claude_token_waits_for_claude_code(self):
+        # Uses the Linux credentials file; the macOS Keychain returns the same JSON.
+        now = 2000000000
+        expired = (now - 60) * 1000
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(usage.os.environ, {"CLAUDE_CONFIG_DIR": directory}), \
+                patch.object(usage.sys, "platform", "linux"), \
+                patch.object(usage, "get_json") as get_json, \
+                patch.object(usage.time, "time", return_value=now):
+            credentials = Path(directory, ".credentials.json")
+            def save(expires):
+                credentials.write_text(json.dumps(
+                    {"claudeAiOauth": {"accessToken": "TEST_ONLY", "expiresAt": expires}}))
+            save(expired)
+            data = usage.safe_fetch(usage.claude_usage)
+            get_json.assert_not_called()
+            self.assertEqual(data, {"error": "open Claude Code", "token_expires": expired})
+            cache = usage.sanitize_cache({"fetched_at": now, "claude": data, "codex": {}})
+            self.assertEqual(cache["claude"], data)
+            self.assertEqual(usage.sidebar_tokens(cache, now=now)["claude"], "Claude: open Claude Code")
+            # Same expired token: wait. Claude Code saved a new one: refresh on the next event.
+            self.assertFalse(usage.needs_refresh(cache, now + 1))
+            save((now + 28800) * 1000)
+            self.assertTrue(usage.needs_refresh(cache, now + 1))
+            credentials.unlink()
+            self.assertFalse(usage.needs_refresh(cache, now + 1))
+
+    def test_rejected_claude_token_refreshes_after_sign_in(self):
+        now = 2000000000
+        valid = {"accessToken": "TEST_ONLY", "expiresAt": (now + 3600) * 1000}
+        rejected = urllib.error.HTTPError(usage.CLAUDE_URL, 401, "Unauthorized", {}, None)
+        with patch.object(usage, "claude_credentials", return_value=valid), \
+                patch.object(usage, "get_json", side_effect=rejected), \
+                patch.object(usage.time, "time", return_value=now):
+            data = usage.safe_fetch(usage.claude_usage)
+        self.assertEqual(data, {"error": "sign in again", "token_expires": valid["expiresAt"]})
+        cache = {"fetched_at": now, "claude": data}
+        with patch.object(usage, "claude_credentials", return_value=valid):
+            self.assertFalse(usage.needs_refresh(cache, now + usage.RETRY))
+        new_login = {"accessToken": "TEST_ONLY", "expiresAt": (now + 28800) * 1000}
+        with patch.object(usage, "claude_credentials", return_value=new_login):
+            self.assertTrue(usage.needs_refresh(cache, now + 1))
+
+    def test_cache_keeps_only_claude_token_expiry_numbers(self):
+        clean = usage.sanitize_cache({"fetched_at": 100,
+                                      "claude": {"error": "open Claude Code", "token_expires": "TEST_ONLY"},
+                                      "codex": {"error": "sign in again", "token_expires": 5}})
+        self.assertEqual(clean["claude"], {"error": "open Claude Code"})
+        self.assertEqual(clean["codex"], {"error": "sign in again"})
+
+    def test_if_stale_restores_missing_rows_and_skips_current_ones(self):
         now = dt.datetime(2030, 1, 2, 11, 0).timestamp()
         cache = {"fetched_at": now, "claude": {"windows": {
             "claude_5h": usage.window("Claude 5h", 0, now + 2 * 3600 + 30)}}}
+        shown = {name: value for name, value in usage.sidebar_tokens(cache, now=now).items() if value}
+        layouts = (
+            # The rows are current: nothing to publish.
+            [{"workspace_id": "w2", "tokens": shown}],
+            # The workspace that showed the rows closed: restore them on w3.
+            [{"workspace_id": "w3"}],
+            # A countdown changed since the rows were published.
+            [{"workspace_id": "w3", "tokens": {**shown, "claude": "Claude 100% 3h"}}],
+            # Another workspace moved above the one showing the rows.
+            [{"workspace_id": "w4"}, {"workspace_id": "w3", "tokens": shown}],
+        )
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
             (root / "usage.json").write_text(json.dumps(cache))
-            with patch.multiple(usage, ROOT=root, CACHE=root / "usage.json",
-                                PUBLISHED=root / "published"), \
+            with patch.multiple(usage, ROOT=root, CACHE=root / "usage.json"), \
                     patch.object(usage, "publish") as publish, \
                     patch.object(usage, "refresh") as refresh, \
+                    patch.object(usage.time, "time", return_value=now), \
                     patch.object(usage.sys, "argv", ["usage.py", "--if-stale"]):
-                for offset in (0, 10, 60):
-                    with patch.object(usage.time, "time", return_value=now + offset):
+                for spaces in layouts:
+                    with patch.object(usage, "herdr", return_value={"result": {"workspaces": spaces}}):
                         usage.main()
             refresh.assert_not_called()
-        # 2h at first, unchanged ten seconds later, then 1h once a minute has passed.
-        self.assertEqual([call.args[0]["claude"] for call in publish.call_args_list],
-                         ["Claude 100% 2h", "Claude 100% 1h"])
+        self.assertEqual([call.args[1] for call in publish.call_args_list], list(layouts[1:]))
 
     def test_redirects_never_forward_credentials(self):
         request = urllib.request.Request(usage.CLAUDE_URL, headers={"Authorization": "Bearer TEST_ONLY"})
@@ -192,12 +251,14 @@ class UsageTests(unittest.TestCase):
         from subprocess import CompletedProcess
         with patch.object(usage.subprocess, "run", return_value=CompletedProcess([], 0, "", "")):
             self.assertEqual(usage.herdr("workspace", "report-metadata", "w1"), {})
-        spaces = [{"workspace_id": "w1"}, {"workspace_id": "w2", "tokens": {"subscription_header": "old"}}]
-        with patch.object(usage, "herdr", return_value={"result": {"workspaces": spaces}}) as cli:
-            usage.publish(usage.sidebar_tokens({}))
-        self.assertIn("w1", cli.call_args_list[1].args)
-        self.assertIn("w2", cli.call_args_list[2].args)
-        self.assertNotIn("--token", cli.call_args_list[2].args)
+        spaces = [{"workspace_id": "w1"}, {"workspace_id": "w2", "tokens": {"subscription_header": "old"}},
+                  {"workspace_id": "w3", "tokens": {"other_plugin": "kept"}}]
+        with patch.object(usage, "herdr", return_value={}) as cli:
+            usage.publish(usage.sidebar_tokens({}), spaces)
+        self.assertEqual(len(cli.call_args_list), 2)
+        self.assertIn("w1", cli.call_args_list[0].args)
+        self.assertIn("w2", cli.call_args_list[1].args)
+        self.assertNotIn("--token", cli.call_args_list[1].args)
 
 
 if __name__ == "__main__":

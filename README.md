@@ -18,6 +18,10 @@ refreshes if the last refresh is an hour old or a shown allowance has reset. Aft
 sleep or a detached session, the rows update the first time you use Herdr again.
 The optional hourly job also refreshes while you are away.
 
+The rows appear under the first workspace in the sidebar. If that workspace
+closes, the next focus change, agent status change, or pane exit moves them to
+the new first workspace.
+
 [Changelog](CHANGELOG.md)
 
 ## Install
@@ -43,7 +47,7 @@ on macOS, Linux, and WSL2. On WSL2, first complete the setup at the start of
 
 ### macOS
 
-1. Clone the repository, or extract the [v0.1.3 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.3/subscription-watcher-v0.1.3.zip).
+1. Clone the repository, or extract the [v0.1.4 ZIP](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/archive/v0.1.4/subscription-watcher-v0.1.4.zip).
 
 	```sh
 	git clone https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher.git
@@ -168,7 +172,11 @@ systemctl --user list-timers subscription-usage.timer
 journalctl --user -u subscription-usage.service
 ```
 
-If a row says `sign in again`, log in to that provider again and refresh.
+If the Claude row says `open Claude Code`, the saved Claude Code login token has
+expired. Start Claude Code to renew it. The row updates on the next Herdr event.
+
+If a row says `sign in again`, log in to that provider again. The Claude row
+updates on the next Herdr event. For Codex, refresh.
 `reset` in place of a percentage means that allowance has reset since the last
 refresh. `refresh pending` means the cache is missing or at least two hours old.
 
@@ -273,13 +281,13 @@ Run these commands from the plugin directory.
 ```
 
 The build reads the version from `herdr-plugin.toml` and writes a ZIP and
-SHA-256 checksum to `dist/`. For version `0.1.3`, verify the checksum.
+SHA-256 checksum to `dist/`. For version `0.1.4`, verify the checksum.
 
 ```sh
 # macOS
-(cd dist && shasum -a 256 -c subscription-watcher-0.1.3.zip.sha256)
+(cd dist && shasum -a 256 -c subscription-watcher-0.1.4.zip.sha256)
 # Linux
-(cd dist && sha256sum -c subscription-watcher-0.1.3.zip.sha256)
+(cd dist && sha256sum -c subscription-watcher-0.1.4.zip.sha256)
 ```
 
 Attach the ZIP and checksum to a GitLab Release. The checksum applies to this

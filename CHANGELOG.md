@@ -1,8 +1,13 @@
 # Changelog
 
-## Unreleased
+## [0.1.4](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.4)
 
 - Updated the README screenshot for the three-row sidebar.
+- Added README steps to install the plugin from the GitHub mirror with `herdr plugin install PurrlyDigital/subscription-watcher`.
+- Changed `usage.py --if-stale` to compare the rows with the live Herdr sidebar instead of the text it last published. When the workspace that showed the rows closes, the next event moves them to the new first workspace. Removed the `published` state file.
+- Added a `pane.exited` hook. Herdr closes a workspace without a `workspace.closed` event when its last pane exits. `herdr-plugin.toml` changed, so link the plugin again after you update.
+- Added the `open Claude Code` status. When the saved Claude Code token has expired, the Claude row shows this status and the plugin sends no request. Before, the request failed and the row said `sign in again`. Only Claude Code renews the token.
+- Changed the Claude row to refresh on the next Herdr event after Claude Code saves a new token. Before, `sign in again` stayed for up to an hour after you logged in.
 
 ## [0.1.3](https://gitlab.com/purrly-digital-llc/herdr-stuff/subscription-watcher/-/releases/v0.1.3)
 

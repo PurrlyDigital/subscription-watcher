@@ -1,8 +1,7 @@
-# v0.1.3
+# v0.1.4
 
-- The sidebar shows three rows: Claude, Fable, and Codex. Replace the old subscription rows in your sidebar config with the rows in `sidebar.example.toml`. Then reload the config in Herdr with the prefix key and `shift+R`.
-- The Fable row shows the weekly Fable allowance. The Codex row ends with the number of available rate limit resets.
-- Each allowance shows the time until it resets as a one-unit countdown, such as `4h` or `4d`.
-- The plugin refreshes the first time you use Herdr after a detached session or sleep. The hourly LaunchAgent and systemd timer are optional.
-- After a `usage unavailable` failure, the plugin retries after five minutes.
-- `herdr-plugin.toml` changed, so link the plugin again after you update.
+- If the workspace that shows the subscription rows closes, the rows move to the new first workspace on the next Herdr event. Before, they stayed hidden until the row text changed.
+- If the saved Claude Code login token has expired, the Claude row says `open Claude Code` instead of `sign in again`. Start Claude Code to renew the token. The row updates on the next Herdr event.
+- After you sign in to Claude Code again, the Claude row updates on the next Herdr event instead of up to an hour later.
+- You can install the plugin from the GitHub mirror with `herdr plugin install PurrlyDigital/subscription-watcher`.
+- `herdr-plugin.toml` changed. After you update a clone, link the plugin again. If you installed from GitHub, run `herdr plugin install PurrlyDigital/subscription-watcher` again.

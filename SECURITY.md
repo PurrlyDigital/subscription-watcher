@@ -23,12 +23,15 @@ third-party security certification.
   `https://chatgpt.com/backend-api/wham/usage`.
 - Keeps only allowance percentages, fixed window labels, reset times, fetch time,
   the Codex rate limit reset count, and fixed error/status strings in the local
-  cache and Herdr metadata. The Fable label is fixed in code; the plugin matches
+  cache and Herdr metadata. After a Claude login error, the local cache also keeps
+  the failed token's expiry time, so the plugin can tell when Claude Code saves a
+  new token. The Fable label is fixed in code; the plugin matches
   the API's model name but never stores or displays it.
 - Does not collect email, organization, account ID, subscription plan, conversation
   text, workspace contents, or refresh tokens for storage/display/transmission to
   Herdr. Credential files can contain those fields; the script selects only the
-  access token and the Codex account ID needed for the provider request.
+  access token, the Claude token's expiry time, and the Codex account ID needed
+  for the provider request.
 - No analytics, telemetry service, GitLab traffic, or third-party network endpoint.
 
 ## Findings addressed

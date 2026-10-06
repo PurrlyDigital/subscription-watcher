@@ -3,7 +3,6 @@
 import argparse
 import datetime as dt
 import fcntl
-import hashlib
 import json
 import math
 import os
@@ -19,7 +18,6 @@ import urllib.request
 HOME = Path.home()
 ROOT = HOME / ".local/state/herdr/subscription-usage"
 CACHE = ROOT / "usage.json"
-PUBLISHED = ROOT / "published"
 INTERVAL = 3600
 RETRY = 300
 MAX_AGE = 7200
@@ -27,7 +25,8 @@ SOURCE = "local:subscription-usage"
 CLAUDE_URL = "https://api.anthropic.com/api/oauth/usage"
 CODEX_URL = "https://chatgpt.com/backend-api/wham/usage"
 MAX_JSON_BYTES = 1024 * 1024
-SAFE_ERRORS = frozenset(("sign in again", "rate limited", "login unavailable", "usage unavailable"))
+SAFE_ERRORS = frozenset(("sign in again", "open Claude Code", "rate limited", "login unavailable",
+                         "usage unavailable"))
 ROW_TOKENS = ("subscription_header", "claude", "fable", "codex")
 # Older row names stay in the patch list so upgrades clear their rows.
 TOKEN_NAMES = ROW_TOKENS + ("claude_5h", "claude_week", "codex_primary",
@@ -82,7 +81,7 @@ def window(label, used, reset):
     return {"label": label, "remaining": round(100 - used), "reset": reset}
 
 
-def claude_usage():
+def claude_credentials():
     credentials_file = Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude")) / ".credentials.json"
     if credentials_file.exists():
         credentials = json.loads(credentials_file.read_text())
@@ -96,11 +95,40 @@ def claude_usage():
         credentials = json.loads(result.stdout)
     else:
         raise FileNotFoundError("Claude Code login unavailable")
-    token = credentials["claudeAiOauth"]["accessToken"]
-    usage = get_json(CLAUDE_URL, {
-        "Authorization": "Bearer " + token,
-        "anthropic-beta": "oauth-2025-04-20",
-    })
+    return credentials["claudeAiOauth"]
+
+
+def claude_token_expiry(oauth):
+    """Return the access token's expiry in epoch milliseconds, or None."""
+    expires = oauth.get("expiresAt")
+    return expires if type(expires) is int and 0 < expires <= 4102444800000 else None
+
+
+def claude_token_renewed(failed_expiry):
+    """True when Claude Code has saved a different token than the one that failed."""
+    try:
+        expires = claude_token_expiry(claude_credentials())
+    except Exception:
+        return False
+    return expires is not None and expires != failed_expiry
+
+
+def claude_usage():
+    oauth = claude_credentials()
+    expires = claude_token_expiry(oauth)
+    # Only Claude Code renews its token, and it does so when it starts. Record the
+    # failed token's expiry so the next Herdr event can spot the renewed one.
+    if expires is not None and expires <= time.time() * 1000:
+        return {"error": "open Claude Code", "token_expires": expires}
+    try:
+        usage = get_json(CLAUDE_URL, {
+            "Authorization": "Bearer " + oauth["accessToken"],
+            "anthropic-beta": "oauth-2025-04-20",
+        })
+    except urllib.error.HTTPError as error:
+        if error.code in (401, 403) and expires is not None:
+            return {"error": "sign in again", "token_expires": expires}
+        raise
     windows = {name: window(label, usage[key]["utilization"], usage[key].get("resets_at"))
                for name, key, label in (("claude_5h", "five_hour", "Claude 5h"),
                                         ("claude_week", "seven_day", "Claude wk"))
@@ -178,6 +206,9 @@ def sanitize_cache(cache):
             error = data["error"]
             clean[provider] = {"error": error if isinstance(error, str) and error in SAFE_ERRORS
                               else "usage unavailable"}
+            expires = data.get("token_expires")
+            if provider == "claude" and type(expires) is int and 0 < expires <= 4102444800000:
+                clean[provider]["token_expires"] = expires
             continue
         windows = {}
         names = CLAUDE_WINDOWS if provider == "claude" else CODEX_WINDOWS
@@ -252,10 +283,14 @@ def refresh():
 
 
 def needs_refresh(cache, now):
-    """Refresh after an hour, after a shown window resets, or soon after a network failure."""
+    """Refresh after an hour, after a shown window resets, soon after a network
+    failure, or once Claude Code replaces a token that failed."""
     fetched = cache.get("fetched_at", 0)
     age = now - fetched
     if age >= INTERVAL:
+        return True
+    failed_expiry = cache.get("claude", {}).get("token_expires")
+    if failed_expiry is not None and claude_token_renewed(failed_expiry):
         return True
     for provider in ("claude", "codex"):
         data = cache.get(provider, {})
@@ -334,19 +369,6 @@ def sidebar_tokens(cache, now=None):
     return tokens
 
 
-def tokens_digest(tokens):
-    return hashlib.sha256(json.dumps(tokens, sort_keys=True).encode()).hexdigest()
-
-
-def last_published():
-    try:
-        fd = os.open(PUBLISHED, os.O_RDONLY | os.O_NOFOLLOW)
-        with os.fdopen(fd) as file:
-            return file.read(64)
-    except (OSError, ValueError):
-        return None
-
-
 def herdr(*args):
     env = child_environment()
     env.setdefault("HERDR_SOCKET_PATH", str(HOME / ".config/herdr/herdr.sock"))
@@ -360,8 +382,16 @@ def herdr(*args):
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
 
-def publish(tokens):
-    spaces = herdr("workspace", "list")["result"]["workspaces"]
+def sidebar_current(spaces, tokens):
+    """True when the first workspace shows these rows and no other workspace has them."""
+    for index, space in enumerate(spaces):
+        shown = space.get("tokens") or {}
+        if any(shown.get(name) != (tokens[name] if index == 0 else None) for name in TOKEN_NAMES):
+            return False
+    return True
+
+
+def publish(tokens, spaces):
     # One section under the first local workspace, not duplicated on every row.
     for index, space in enumerate(spaces):
         if index and not any(key in space.get("tokens", {}) for key in TOKEN_NAMES):
@@ -382,7 +412,7 @@ def main():
     mode.add_argument("--refresh", action="store_true", help="fetch fresh usage (hourly scheduler)")
     mode.add_argument("--cached", action="store_true", help="publish cached usage without API requests")
     mode.add_argument("--if-stale", action="store_true",
-                      help="refresh when stale; publish only when the sidebar text changed (Herdr focus events)")
+                      help="refresh when stale; publish only when the sidebar is missing or out of date (Herdr events)")
     mode.add_argument("--print", action="store_true", dest="print_only", help="display cached sidebar text")
     args = parser.parse_args()
     os.umask(0o077)
@@ -407,13 +437,14 @@ def main():
         if args.refresh or (not args.cached and needs_refresh(cache, time.time())):
             cache = refresh()
         tokens = sidebar_tokens(cache)
-        digest = tokens_digest(tokens)
-        # Countdowns change without a refresh, so republish whenever the text changes.
-        if args.if_stale and digest == last_published():
-            return
         try:
-            publish(tokens)
-            write_private(PUBLISHED, digest)
+            spaces = herdr("workspace", "list")["result"]["workspaces"]
+            # Compare with the live sidebar, not with what this script last sent.
+            # That restores the rows after the workspace showing them closes, and
+            # republishes when a countdown changes.
+            if args.if_stale and sidebar_current(spaces, tokens):
+                return
+            publish(tokens, spaces)
         except (RuntimeError, OSError, subprocess.SubprocessError, ValueError, KeyError):
             # Keep the cache even when Herdr is not running; startup republishes it.
             print("Subscription usage cached; Herdr sidebar unavailable.")
